@@ -115,7 +115,6 @@ def write2file(file_name: str, data_list: list, clear=False):
 
 def main():
     for r in range(REPEAT_TIMES):
-        print(r)
         valid_acc, test_acc = run_random_search()
         write2file(VALID_RESULT_FILE, valid_acc)
         write2file(TEST_RESULT_FILE, test_acc)
