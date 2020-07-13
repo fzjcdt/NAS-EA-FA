@@ -19,9 +19,9 @@ ops_type = [CONV1X1, CONV3X3, MAXPOOL3X3]
 MAX_TIME_BUDGET = 1000000
 INTERVAL = 1000
 REPEAT_TIMES = 1000
-VALID_RESULT_FILE = './result/bitwise_mutation_valid.txt'
-TEST_RESULT_FILE = './result/bitwise_mutation_test.txt'
-POPULATION_SIZE = 10
+VALID_RESULT_FILE = './result/regularized_bitwise_mutation_valid.txt'
+TEST_RESULT_FILE = './result/regularized_bitwise_mutation_test.txt'
+POPULATION_SIZE = 50
 
 nasbench = api.NASBench(NASBENCH_TFRECORD)
 
@@ -103,7 +103,7 @@ def bitwise_mutation(individual: Individual):
             individual.connection = cp.deepcopy(temp_connection)
 
 
-def tournament_selection(population: list, percent=0.4) -> Individual:
+def tournament_selection(population: list, percent=0.2) -> Individual:
     k = int(len(population) * percent)
     individual = np.random.choice(population)
     for _ in range(k - 1):
@@ -145,8 +145,49 @@ def evolution_algorithm():
     return best_valid_acc, best_test_acc, times
 
 
+def regularized_evolution_algorithm():
+    cur_time_budget = 0
+    best_valid_acc, best_test_acc, times = [0.0], [0.0], [0.0]
+    population = [Individual() for _ in range(POPULATION_SIZE)]
+    for individual in population:
+        data = get_model_acc(individual)
+        valid_acc, test_acc, time = data['validation_accuracy'], data['test_accuracy'], data['training_time']
+        individual.fitness = valid_acc
+        if valid_acc > best_valid_acc[-1]:
+            best_valid_acc.append(valid_acc)
+            best_test_acc.append(test_acc)
+        else:
+            best_valid_acc.append(best_valid_acc[-1])
+            best_test_acc.append(best_test_acc[-1])
+        times.append(time)
+        cur_time_budget += time
+
+    while cur_time_budget <= MAX_TIME_BUDGET:
+        individual = cp.deepcopy(tournament_selection(population))
+        bitwise_mutation(individual)
+        data = get_model_acc(individual)
+        valid_acc, test_acc, time = data['validation_accuracy'], data['test_accuracy'], data['training_time']
+        cur_time_budget += time
+        if cur_time_budget > MAX_TIME_BUDGET:
+            break
+
+        individual.fitness = valid_acc
+        if valid_acc > best_valid_acc[-1]:
+            best_valid_acc.append(valid_acc)
+            best_test_acc.append(test_acc)
+        else:
+            best_valid_acc.append(best_valid_acc[-1])
+            best_test_acc.append(best_test_acc[-1])
+        times.append(time)
+        population.append(individual)
+        population.pop(0)
+
+    return best_valid_acc, best_test_acc, times
+
+
 def run_evolution_algorithm():
-    best_valid_acc, best_test_acc, times = evolution_algorithm()
+    # best_valid_acc, best_test_acc, times = evolution_algorithm()
+    best_valid_acc, best_test_acc, times = regularized_evolution_algorithm()
     cur_time, times_len = 0.0, len(times)
     valid_acc, test_acc = [], []
     index = -1
