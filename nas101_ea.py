@@ -19,9 +19,9 @@ ops_type = [CONV1X1, CONV3X3, MAXPOOL3X3]
 MAX_TIME_BUDGET = 1000000
 INTERVAL = 1000
 REPEAT_TIMES = 1000
-VALID_RESULT_FILE = './result/regularized_bitwise_mutation_valid.txt'
-TEST_RESULT_FILE = './result/regularized_bitwise_mutation_test.txt'
-POPULATION_SIZE = 50
+VALID_RESULT_FILE = './result/regularized_bitwise_mutation_valid_1.txt'
+TEST_RESULT_FILE = './result/regularized_bitwise_mutation_test_1.txt'
+POPULATION_SIZE = 10
 
 nasbench = api.NASBench(NASBENCH_TFRECORD)
 
@@ -103,7 +103,7 @@ def bitwise_mutation(individual: Individual):
             individual.connection = cp.deepcopy(temp_connection)
 
 
-def tournament_selection(population: list, percent=0.2) -> Individual:
+def tournament_selection(population: list, percent=0.4) -> Individual:
     k = int(len(population) * percent)
     individual = np.random.choice(population)
     for _ in range(k - 1):
@@ -167,9 +167,6 @@ def regularized_evolution_algorithm():
         bitwise_mutation(individual)
         data = get_model_acc(individual)
         valid_acc, test_acc, time = data['validation_accuracy'], data['test_accuracy'], data['training_time']
-        cur_time_budget += time
-        if cur_time_budget > MAX_TIME_BUDGET:
-            break
 
         individual.fitness = valid_acc
         if valid_acc > best_valid_acc[-1]:
@@ -181,6 +178,9 @@ def regularized_evolution_algorithm():
         times.append(time)
         population.append(individual)
         population.pop(0)
+        cur_time_budget += time
+        if cur_time_budget > MAX_TIME_BUDGET:
+            break
 
     return best_valid_acc, best_test_acc, times
 
