@@ -20,7 +20,6 @@ REPEAT_TIMES = 1000
 VALID_RESULT_FILE = './result/random_search_valid.txt'
 TEST_RESULT_FILE = './result/random_search_test.txt'
 
-
 nasbench = api.NASBench(NASBENCH_TFRECORD)
 
 
@@ -63,8 +62,13 @@ class Individual(object):
 
 def get_model_acc(individual: Individual):
     model_spec = api.ModelSpec(individual.connections_to_matrix(), individual.ops)
-    data = nasbench.query(model_spec)
-    return data
+    _, computed_stat = nasbench.get_metrics_from_spec(model_spec)
+
+    rand_index = randint(3)
+    test_acc = np.array([computed_stat[108][i]['final_test_accuracy'] for i in range(3)]).mean()
+    computed_stat[108][rand_index]['final_test_accuracy'] = test_acc
+
+    return computed_stat[108][rand_index]
 
 
 def random_search():
@@ -73,7 +77,8 @@ def random_search():
     while cur_time_budget <= MAX_TIME_BUDGET:
         individual = Individual()
         data = get_model_acc(individual)
-        valid_acc, test_acc, time = data['validation_accuracy'], data['test_accuracy'], data['training_time']
+        valid_acc, test_acc, time = data['final_validation_accuracy'], data['final_test_accuracy'], data[
+            'final_training_time']
         if valid_acc > best_valid_acc[-1]:
             best_valid_acc.append(valid_acc)
             best_test_acc.append(test_acc)
@@ -115,6 +120,7 @@ def write2file(file_name: str, data_list: list, clear=False):
 
 def main():
     for r in range(REPEAT_TIMES):
+        print(r)
         valid_acc, test_acc = run_random_search()
         write2file(VALID_RESULT_FILE, valid_acc)
         write2file(TEST_RESULT_FILE, test_acc)
