@@ -19,9 +19,9 @@ ops_type = [CONV1X1, CONV3X3, MAXPOOL3X3]
 MAX_TIME_BUDGET = 1000000
 INTERVAL = 1000
 REPEAT_TIMES = 1000
-VALID_RESULT_FILE = './result/regularized_bitwise_mutation_valid_1.txt'
-TEST_RESULT_FILE = './result/regularized_bitwise_mutation_test_1.txt'
-POPULATION_SIZE = 10
+VALID_RESULT_FILE = './result/regularized_ea_valid.txt'
+TEST_RESULT_FILE = './result/regularized_ea_test.txt'
+POPULATION_SIZE = 100
 
 nasbench = api.NASBench(NASBENCH_TFRECORD)
 
@@ -65,8 +65,13 @@ class Individual(object):
 
 def get_model_acc(individual: Individual):
     model_spec = api.ModelSpec(individual.connections_to_matrix(), individual.ops)
-    data = nasbench.query(model_spec)
-    return data
+    _, computed_stat = nasbench.get_metrics_from_spec(model_spec)
+
+    rand_index = randint(3)
+    test_acc = np.array([computed_stat[108][i]['final_test_accuracy'] for i in range(3)]).mean()
+    computed_stat[108][rand_index]['final_test_accuracy'] = test_acc
+
+    return computed_stat[108][rand_index]
 
 
 def bit_flipping_mutation(individual: Individual):
@@ -103,7 +108,7 @@ def bitwise_mutation(individual: Individual):
             individual.connection = cp.deepcopy(temp_connection)
 
 
-def tournament_selection(population: list, percent=0.4) -> Individual:
+def tournament_selection(population: list, percent=0.2) -> Individual:
     k = int(len(population) * percent)
     individual = np.random.choice(population)
     for _ in range(k - 1):
@@ -121,7 +126,8 @@ def evolution_algorithm():
     while cur_time_budget <= MAX_TIME_BUDGET:
         for individual in population:
             data = get_model_acc(individual)
-            valid_acc, test_acc, time = data['validation_accuracy'], data['test_accuracy'], data['training_time']
+            valid_acc, test_acc, time = data['final_validation_accuracy'], data['final_test_accuracy'], data[
+                'final_training_time']
             individual.fitness = valid_acc
             if valid_acc > best_valid_acc[-1]:
                 best_valid_acc.append(valid_acc)
@@ -151,7 +157,8 @@ def regularized_evolution_algorithm():
     population = [Individual() for _ in range(POPULATION_SIZE)]
     for individual in population:
         data = get_model_acc(individual)
-        valid_acc, test_acc, time = data['validation_accuracy'], data['test_accuracy'], data['training_time']
+        valid_acc, test_acc, time = data['final_validation_accuracy'], data['final_test_accuracy'], data[
+            'final_training_time']
         individual.fitness = valid_acc
         if valid_acc > best_valid_acc[-1]:
             best_valid_acc.append(valid_acc)
@@ -164,9 +171,11 @@ def regularized_evolution_algorithm():
 
     while cur_time_budget <= MAX_TIME_BUDGET:
         individual = cp.deepcopy(tournament_selection(population))
+        # bit_flipping_mutation(individual)
         bitwise_mutation(individual)
         data = get_model_acc(individual)
-        valid_acc, test_acc, time = data['validation_accuracy'], data['test_accuracy'], data['training_time']
+        valid_acc, test_acc, time = data['final_validation_accuracy'], data['final_test_accuracy'], data[
+            'final_training_time']
 
         individual.fitness = valid_acc
         if valid_acc > best_valid_acc[-1]:
