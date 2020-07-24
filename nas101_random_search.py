@@ -71,11 +71,22 @@ def get_model_acc(individual: Individual):
     return computed_stat[108][rand_index]
 
 
+def get_model_hash(individual: Individual):
+    model_spec = api.ModelSpec(individual.connections_to_matrix(), individual.ops)
+    return model_spec.hash_spec(ops_type)
+
+
 def random_search():
     cur_time_budget = 0
     best_valid_acc, best_test_acc, times = [0.0], [0.0], [0.0]
+    history_hash = set()
     while cur_time_budget <= MAX_TIME_BUDGET:
         individual = Individual()
+        individual_hash = get_model_hash(individual)
+        if individual_hash in history_hash:
+            continue
+        else:
+            history_hash.add(individual_hash)
         data = get_model_acc(individual)
         valid_acc, test_acc, time = data['final_validation_accuracy'], data['final_test_accuracy'], data[
             'final_training_time']
