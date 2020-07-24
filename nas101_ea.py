@@ -74,6 +74,25 @@ def get_model_acc(individual: Individual):
     return computed_stat[108][rand_index]
 
 
+def get_model_acc_from_history(individual: Individual, history2acc: dict):
+    individual_hash = get_model_hash(individual)
+    if individual_hash in history2acc.keys():
+        acc = history2acc[individual_hash]
+        valid_acc, test_acc, time = acc[0], acc[1], 0.0
+    else:
+        data = get_model_acc(individual)
+        valid_acc, test_acc, time = data['final_validation_accuracy'], data['final_test_accuracy'], data[
+            'final_training_time']
+        history2acc[individual_hash] = (valid_acc, test_acc)
+
+    return valid_acc, test_acc, time
+
+
+def get_model_hash(individual: Individual):
+    model_spec = api.ModelSpec(individual.connections_to_matrix(), individual.ops)
+    return model_spec.hash_spec(ops_type)
+
+
 def bit_flipping_mutation(individual: Individual):
     ops_point = randint(1, len(individual.ops) - 1)
     temp_ops_types = [t for t in ops_type if t != individual.ops[ops_point]]
@@ -153,12 +172,12 @@ def evolution_algorithm():
 
 def regularized_evolution_algorithm():
     cur_time_budget = 0
+    history2acc = {}
     best_valid_acc, best_test_acc, times = [0.0], [0.0], [0.0]
     population = [Individual() for _ in range(POPULATION_SIZE)]
     for individual in population:
-        data = get_model_acc(individual)
-        valid_acc, test_acc, time = data['final_validation_accuracy'], data['final_test_accuracy'], data[
-            'final_training_time']
+        valid_acc, test_acc, time = get_model_acc_from_history(individual, history2acc)
+
         individual.fitness = valid_acc
         if valid_acc > best_valid_acc[-1]:
             best_valid_acc.append(valid_acc)
@@ -173,9 +192,7 @@ def regularized_evolution_algorithm():
         individual = cp.deepcopy(tournament_selection(population))
         # bit_flipping_mutation(individual)
         bitwise_mutation(individual)
-        data = get_model_acc(individual)
-        valid_acc, test_acc, time = data['final_validation_accuracy'], data['final_test_accuracy'], data[
-            'final_training_time']
+        valid_acc, test_acc, time = get_model_acc_from_history(individual, history2acc)
 
         individual.fitness = valid_acc
         if valid_acc > best_valid_acc[-1]:
