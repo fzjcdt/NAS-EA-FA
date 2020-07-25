@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.random import randint
 from sklearn.svm import SVR
+from xgboost import XGBRegressor, XGBRFRegressor
 
 from nasbench import api
 
@@ -93,11 +94,15 @@ def get_model_data(model: Model):
 
 def generate_training_dataset(n=100):
     x_train, y_train, test_acc, time = [], [], [], []
-    for i in range(n):
+    num = 0
+    while num < n:
         model = Model()
+        v_acc, t_acc, training_time = get_model_data(model)
+        if v_acc < 0.85:
+            continue
+        num += 1
         x_train.append(get_model_sequences(model))
         # valid_acc, _ = get_model_acc(model)
-        v_acc, t_acc, training_time = get_model_data(model)
         y_train.append(v_acc)
         test_acc.append(t_acc)
         time.append(training_time)
@@ -139,14 +144,14 @@ def neural_predictor():
         times.append(time)
         cur_time_budget += time
 
-    svr = SVR()
-    svr.fit(x_train, y_train)
+    model = XGBRFRegressor()
+    model.fit(np.array(x_train), np.array(y_train))
 
-    x, y, test_acc, time = get_all_dataset()
-    y_predict = np.array(svr.predict(x))
+    # x, y, test_acc, time = get_all_dataset()
+    y_predict = np.array(model.predict(np.array(X)))
     sorted_index = (-y_predict).argsort()
-    x, y, test_acc, time = np.array(x)[sorted_index], np.array(y)[sorted_index], np.array(test_acc)[sorted_index], \
-                           np.array(time)[sorted_index]
+    x, y, test_acc, time = np.array(X)[sorted_index], np.array(Y)[sorted_index], np.array(TEST_ACC)[sorted_index], \
+                           np.array(TIME)[sorted_index]
 
     index = 0
     while cur_time_budget < MAX_TIME_BUDGET:
@@ -191,6 +196,17 @@ def write2file(file_name: str, data_list: list, clear=False):
         file.write(data + '\n')
 
 
+def compare_regression_model():
+    x_train, y_train, test_acc, training_dataset_time = generate_training_dataset(n=100)
+    # model = SVR()
+    model = XGBRegressor()
+    # model = XGBRFRegressor()
+    model.fit(x_train, y_train)
+    y_predict = np.array(model.predict(X))
+    t = np.abs(np.array(y_predict - Y), 2).mean()
+    print(t)
+
+
 def main():
     for r in range(REPEAT_TIMES):
         print(r)
@@ -198,6 +214,8 @@ def main():
         write2file(VALID_RESULT_FILE, valid_acc)
         write2file(TEST_RESULT_FILE, test_acc)
 
+
+X, Y, TEST_ACC, TIME = get_all_dataset()
 
 if __name__ == '__main__':
     main()
