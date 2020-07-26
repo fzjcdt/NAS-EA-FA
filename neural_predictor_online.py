@@ -171,7 +171,7 @@ def neural_predictor():
         index += 1
         if time == 0.0:
             continue
-        x_train.append(get_model_sequences(models[index]))
+        x_train.append(get_model_sequences(models[index - 1]))
         y_train.append(v_acc)
 
         if v_acc > best_valid_acc[-1]:
