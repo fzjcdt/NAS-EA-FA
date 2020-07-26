@@ -60,15 +60,16 @@ class Individual(object):
         return rst
 
 
-def get_model_acc(individual: Individual):
+def get_model_data(individual: Individual):
     model_spec = api.ModelSpec(individual.connections_to_matrix(), individual.ops)
     _, computed_stat = nasbench.get_metrics_from_spec(model_spec)
 
-    rand_index = randint(3)
     test_acc = np.array([computed_stat[108][i]['final_test_accuracy'] for i in range(3)]).mean()
-    computed_stat[108][rand_index]['final_test_accuracy'] = test_acc
+    rand_index = randint(3)
+    valid_acc = computed_stat[108][rand_index]['final_validation_accuracy']
+    training_time = computed_stat[108][rand_index]['final_training_time']
 
-    return computed_stat[108][rand_index]
+    return valid_acc, test_acc, training_time
 
 
 def get_model_hash(individual: Individual):
@@ -87,9 +88,7 @@ def random_search():
             continue
         else:
             history_hash.add(individual_hash)
-        data = get_model_acc(individual)
-        valid_acc, test_acc, time = data['final_validation_accuracy'], data['final_test_accuracy'], data[
-            'final_training_time']
+        valid_acc, test_acc, time = get_model_data(individual)
         if valid_acc > best_valid_acc[-1]:
             best_valid_acc.append(valid_acc)
             best_test_acc.append(test_acc)
